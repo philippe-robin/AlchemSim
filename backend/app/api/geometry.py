@@ -138,6 +138,23 @@ async def create_primitive(
     return GeometryResponse.model_validate(geometry)
 
 
+@router.get("/by-simulation/{simulation_id}", response_model=GeometryResponse)
+async def get_geometry_by_simulation(
+    simulation_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> GeometryResponse:
+    """Retrieve geometry metadata by simulation ID."""
+    await _authorise_simulation_for_geometry(simulation_id, user, db)
+    result = await db.execute(
+        select(Geometry).where(Geometry.simulation_id == simulation_id)
+    )
+    geo = result.scalar_one_or_none()
+    if geo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Geometry not found")
+    return GeometryResponse.model_validate(geo)
+
+
 @router.get("/{geometry_id}", response_model=GeometryResponse)
 async def get_geometry(
     geometry_id: uuid.UUID,

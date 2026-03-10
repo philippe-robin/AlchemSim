@@ -58,7 +58,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
       // Try to load related geometry and mesh
       try {
-        const geo = await geoApi.getGeometry(sim.id);
+        const geo = await geoApi.getGeometryBySimulation(sim.id);
         set({ geometry: geo });
 
         // Download and parse STL for 3D preview
@@ -139,18 +139,22 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     if (!sim) return;
 
     set({ isLoading: true });
-    try {
-      // Parse STL locally for 3D preview
-      const isSTL = file.name.toLowerCase().endsWith(".stl");
-      let parsedSTL: STLData | null = null;
-      if (isSTL) {
-        const result = await parseSTLFile(file);
-        parsedSTL = { vertices: result.vertices, normals: result.normals };
-      }
 
-      // Upload to backend
+    // Parse STL locally for 3D preview FIRST (independent of backend)
+    const isSTL = file.name.toLowerCase().endsWith(".stl");
+    if (isSTL) {
+      try {
+        const result = await parseSTLFile(file);
+        set({ stlData: { vertices: result.vertices, normals: result.normals } });
+      } catch (e) {
+        console.error("STL parse error:", e);
+      }
+    }
+
+    // Upload to backend (may fail if MinIO is down, etc.)
+    try {
       const geo = await geoApi.uploadGeometry(file, sim.id);
-      set({ geometry: geo, stlData: parsedSTL, isLoading: false });
+      set({ geometry: geo, isLoading: false });
       // Refresh simulation status
       const updated = await simApi.getSimulation(sim.id);
       set({ currentSimulation: updated });

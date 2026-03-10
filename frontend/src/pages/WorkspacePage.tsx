@@ -5,6 +5,7 @@ import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import { Viewport3D } from "@/components/viewport/Viewport3D";
 import { GeometryRenderer } from "@/components/viewport/GeometryRenderer";
 import { MeshRenderer } from "@/components/viewport/MeshRenderer";
+import { CameraFramer } from "@/components/viewport/CameraFramer";
 import { GeometryPanel } from "@/components/geometry/GeometryPanel";
 import { MeshPanel } from "@/components/mesh/MeshPanel";
 import { PhysicsPanel } from "@/components/physics/PhysicsPanel";
@@ -116,6 +117,9 @@ export function WorkspacePage() {
 
       {/* 3D Viewport */}
       <Viewport3D>
+        {/* Auto-frame camera when geometry loads */}
+        <CameraFramer vertices={stlData?.vertices ?? null} />
+
         {/* Render geometry if we have STL data */}
         {stlData && (
           <GeometryRenderer

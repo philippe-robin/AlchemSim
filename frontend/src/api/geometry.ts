@@ -15,8 +15,13 @@ export async function uploadGeometry(
   return data;
 }
 
-export async function getGeometry(id: string): Promise<Geometry> {
-  const { data } = await client.get<Geometry>(`/geometry/${id}`);
+export async function getGeometry(geometryId: string): Promise<Geometry> {
+  const { data } = await client.get<Geometry>(`/geometry/${geometryId}`);
+  return data;
+}
+
+export async function getGeometryBySimulation(simulationId: string): Promise<Geometry> {
+  const { data } = await client.get<Geometry>(`/geometry/by-simulation/${simulationId}`);
   return data;
 }
 

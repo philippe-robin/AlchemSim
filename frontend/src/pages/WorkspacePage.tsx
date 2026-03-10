@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
@@ -18,14 +18,9 @@ import { SimulationStatus, type WSMessage, type ResidualData } from "@/types/api
 
 export function WorkspacePage() {
   const { simulationId } = useParams<{ simulationId: string }>();
-  const { currentSimulation, geometry, isLoading, loadSimulation, setSimulation, addResidual } =
+  const { currentSimulation, stlData, isLoading, loadSimulation, setSimulation, addResidual } =
     useSimulationStore();
   const { currentStep, setSimulationStatus } = useWorkflowStore();
-
-  const [stlData, setStlData] = useState<{
-    vertices: Float32Array;
-    normals: Float32Array;
-  } | null>(null);
 
   // Load simulation on mount
   useEffect(() => {
@@ -45,28 +40,6 @@ export function WorkspacePage() {
       setSimulationStatus(currentSimulation.status);
     }
   }, [currentSimulation, setSimulationStatus]);
-
-  // Load STL for viewing
-  useEffect(() => {
-    if (geometry && geometry.format === "stl") {
-      // For demo: try to load from geometry download endpoint
-      // In a real app, this would download and parse the file
-      // For now, set empty - the GeometryPanel shows info
-      setStlData(null);
-    }
-  }, [geometry]);
-
-  // Handle geometry file upload and parse locally for preview
-  useEffect(() => {
-    // Listen for geometry changes to parse STL locally
-    const sub = useSimulationStore.subscribe((state) => {
-      if (state.geometry && !stlData) {
-        // Geometry was uploaded; for local preview, we'd parse it
-        // This is a stub - in reality, the geometry blob would be fetched
-      }
-    });
-    return sub;
-  }, [stlData]);
 
   // WebSocket for live updates
   const handleWSMessage = useCallback(

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import * as simApi from "@/api/simulations";
 import * as geoApi from "@/api/geometry";
 import * as meshApi from "@/api/mesh";
+import { parseSTL, parseSTLFile } from "@/lib/stlParser";
 import type {
   Simulation,
   Geometry,
@@ -11,10 +12,16 @@ import type {
   ResidualData,
 } from "@/types/api";
 
+export interface STLData {
+  vertices: Float32Array;
+  normals: Float32Array;
+}
+
 interface SimulationState {
   currentSimulation: Simulation | null;
   geometry: Geometry | null;
   mesh: Mesh | null;
+  stlData: STLData | null;
   residuals: ResidualData[];
   isLoading: boolean;
   error: string | null;
@@ -38,6 +45,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   currentSimulation: null,
   geometry: null,
   mesh: null,
+  stlData: null,
   residuals: [],
   isLoading: false,
   error: null,
@@ -52,6 +60,18 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       try {
         const geo = await geoApi.getGeometry(sim.id);
         set({ geometry: geo });
+
+        // Download and parse STL for 3D preview
+        if (geo.format === "stl") {
+          try {
+            const blob = await geoApi.downloadGeometry(geo.id);
+            const buffer = await blob.arrayBuffer();
+            const result = parseSTL(buffer);
+            set({ stlData: { vertices: result.vertices, normals: result.normals } });
+          } catch {
+            // Preview not available, non-blocking
+          }
+        }
       } catch {
         set({ geometry: null });
       }
@@ -120,8 +140,17 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
     set({ isLoading: true });
     try {
+      // Parse STL locally for 3D preview
+      const isSTL = file.name.toLowerCase().endsWith(".stl");
+      let parsedSTL: STLData | null = null;
+      if (isSTL) {
+        const result = await parseSTLFile(file);
+        parsedSTL = { vertices: result.vertices, normals: result.normals };
+      }
+
+      // Upload to backend
       const geo = await geoApi.uploadGeometry(file, sim.id);
-      set({ geometry: geo, isLoading: false });
+      set({ geometry: geo, stlData: parsedSTL, isLoading: false });
       // Refresh simulation status
       const updated = await simApi.getSimulation(sim.id);
       set({ currentSimulation: updated });
@@ -172,6 +201,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       currentSimulation: null,
       geometry: null,
       mesh: null,
+      stlData: null,
       residuals: [],
       isLoading: false,
       error: null,

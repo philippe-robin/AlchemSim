@@ -42,7 +42,7 @@ async def _authorise_simulation(
     return sim
 
 
-@router.post("/", response_model=SimulationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SimulationResponse, status_code=status.HTTP_201_CREATED)
 async def create_simulation(
     body: SimulationCreate,
     user: User = Depends(get_current_user),
@@ -80,7 +80,7 @@ async def create_simulation(
     return SimulationResponse.model_validate(sim)
 
 
-@router.get("/", response_model=list[SimulationResponse])
+@router.get("", response_model=list[SimulationResponse])
 async def list_simulations(
     project_id: uuid.UUID,
     user: User = Depends(get_current_user),

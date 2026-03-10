@@ -50,27 +50,38 @@ async def _get_project_with_count(project: Project, db: AsyncSession) -> Project
     )
 
 
-@router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     body: ProjectCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ProjectResponse:
     """Create a new project inside a workspace."""
-    await _verify_workspace_ownership(body.workspace_id, user, db)
+    workspace_id = body.workspace_id
+    if workspace_id is None:
+        # Auto-select the user's first workspace
+        ws_result = await db.execute(
+            select(Workspace).where(Workspace.owner_id == user.id).limit(1)
+        )
+        ws = ws_result.scalar_one_or_none()
+        if ws is None:
+            raise HTTPException(status_code=404, detail="No workspace found")
+        workspace_id = ws.id
+    else:
+        await _verify_workspace_ownership(workspace_id, user, db)
     project = Project(
         name=body.name,
         description=body.description,
-        workspace_id=body.workspace_id,
+        workspace_id=workspace_id,
     )
     db.add(project)
     await db.flush()
     return await _get_project_with_count(project, db)
 
 
-@router.get("/", response_model=ProjectList)
+@router.get("", response_model=ProjectList)
 async def list_projects(
-    workspace_id: uuid.UUID,
+    workspace_id: uuid.UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     search: str | None = Query(default=None),
@@ -78,7 +89,17 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
 ) -> ProjectList:
     """List projects in a workspace with pagination and optional search."""
-    await _verify_workspace_ownership(workspace_id, user, db)
+    if workspace_id is None:
+        # Auto-select the user's first workspace
+        ws_result = await db.execute(
+            select(Workspace).where(Workspace.owner_id == user.id).limit(1)
+        )
+        ws = ws_result.scalar_one_or_none()
+        if ws is None:
+            return ProjectList(items=[], total=0, page=page, page_size=page_size)
+        workspace_id = ws.id
+    else:
+        await _verify_workspace_ownership(workspace_id, user, db)
 
     base_q = select(Project).where(Project.workspace_id == workspace_id)
     count_q = select(func.count()).select_from(Project).where(

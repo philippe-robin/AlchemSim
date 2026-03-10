@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
         description="SaaS CFD Simulation Platform",
         version="0.1.0",
         lifespan=lifespan,
+        redirect_slashes=False,
     )
 
     from app.config import settings
